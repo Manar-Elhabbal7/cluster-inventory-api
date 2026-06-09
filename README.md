@@ -58,6 +58,11 @@ The `PlacementDecision API` solves the integration explosion problem:
 For a practical guide on how to produce and consume `PlacementDecision` objects, see the
 [PlacementDecision Adoption Guide](docs/placementdecision-adoption-guide.md).
 
+## Plugin OCI Images
+
+Published plugin images and runtime consumption patterns are documented in
+[Using Plugin OCI Images](docs/plugin-images.md).
+
 ## Community, discussion, contribution, and support
 
 Learn how to engage with the Kubernetes community on the [community page](http://kubernetes.io/community/).
