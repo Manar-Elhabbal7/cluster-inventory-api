@@ -270,8 +270,7 @@ updated.Decisions = append(updated.Decisions, cpv1alpha1.ClusterDecision{
 _, err = client.ApisV1alpha1().PlacementDecisions(ns).Update(ctx, updated, metav1.UpdateOptions{})
 ```
 
-> **Tip:** If heavy churn is a concern, sort the `decisions` slice alphabetically by cluster
-> name. When the set hasn't changed, the identical content produces no write event for consumers.
+> **Tip:** If heavy churn is a concern, sort the `decisions` slice alphabetically by cluster name before comparing/updating. Stable ordering makes it easier to detect no-op changes and skip unnecessary updates (which would otherwise generate watch events).
 
 #### Cleanup
 
@@ -524,6 +523,7 @@ spec:
   displayName: "US West Production"
   clusterManager:
     name: my-fleet-manager
+# Note: status is typically managed via the /status subresource (set by controllers); shown here for illustration.
 status:
   version:
     kubernetes: "1.31.0"
@@ -549,6 +549,7 @@ spec:
   displayName: "EU Central Production"
   clusterManager:
     name: my-fleet-manager
+# Note: status is typically managed via the /status subresource (set by controllers); shown here for illustration.
 status:
   version:
     kubernetes: "1.31.0"
