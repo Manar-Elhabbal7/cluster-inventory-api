@@ -11,14 +11,14 @@ consumers **read** it. Each object holds up to 100 cluster decisions, following 
 ```mermaid
 flowchart LR
 
-    A["Cluster Manager<br/>creates profiles"]
-    B["Cluster Manager<br/>creates profiles"]
+    A["Cluster Manager"]
+    B["ClusterProfile<br/>[Inventory API]"]
     C["Scheduler<br/>(Producer)"]
     D["PlacementDecision<br/>[Standard API]"]
     E["Consumer<br/>(Deployer)"]
 
-    A --> B
-    B -. "Read/Select" .-> C
+    A -. "creates/updates" .-> B
+    C -. "reads/selects" .-> B
     C -. "writes" .-> D
     E -. "watches" .-> D
 ```
@@ -387,8 +387,11 @@ func collectDecisions(
 
     // Sort slices by decision-index
     sort.Slice(list.Items, func(i, j int) bool {
-        idxI, _ := strconv.Atoi(list.Items[i].Labels[cpv1alpha1.DecisionIndexLabel])
-        idxJ, _ := strconv.Atoi(list.Items[j].Labels[cpv1alpha1.DecisionIndexLabel])
+        idxI, errI := strconv.Atoi(list.Items[i].Labels[cpv1alpha1.DecisionIndexLabel])
+        idxJ, errJ := strconv.Atoi(list.Items[j].Labels[cpv1alpha1.DecisionIndexLabel])
+        if errI != nil || errJ != nil {
+            return list.Items[i].Name < list.Items[j].Name
+        }
         return idxI < idxJ
     })
 
@@ -455,17 +458,25 @@ clusters were added or removed:
 
 ```go
 func diffDecisions(
+    defaultNamespace string,
     oldDecisions, newDecisions []cpv1alpha1.ClusterDecision,
 ) (added, removed []cpv1alpha1.ClusterDecision) {
+    keyFn := func(d cpv1alpha1.ClusterDecision) string {
+        ns := d.ClusterProfileRef.Namespace
+        if ns == "" {
+            ns = defaultNamespace
+        }
+        return ns + "/" + d.ClusterProfileRef.Name
+    }
+
     oldSet := make(map[string]bool)
     for _, d := range oldDecisions {
-        key := d.ClusterProfileRef.Namespace + "/" + d.ClusterProfileRef.Name
-        oldSet[key] = true
+        oldSet[keyFn(d)] = true
     }
 
     newSet := make(map[string]bool)
     for _, d := range newDecisions {
-        key := d.ClusterProfileRef.Namespace + "/" + d.ClusterProfileRef.Name
+        key := keyFn(d)
         newSet[key] = true
         if !oldSet[key] {
             added = append(added, d)
@@ -473,8 +484,7 @@ func diffDecisions(
     }
 
     for _, d := range oldDecisions {
-        key := d.ClusterProfileRef.Namespace + "/" + d.ClusterProfileRef.Name
-        if !newSet[key] {
+        if !newSet[keyFn(d)] {
             removed = append(removed, d)
         }
     }
@@ -609,6 +619,7 @@ cluster as a simple example:
 import (
     "sigs.k8s.io/cluster-inventory-api/pkg/access"
     k8sclient "k8s.io/client-go/kubernetes"
+    apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 // Load access provider config
@@ -671,9 +682,9 @@ for event := range watcher.ResultChan() {
         }
 
         _, err = spokeClient.CoreV1().ConfigMaps("default").Create(ctx, cm, metav1.CreateOptions{})
-        if err != nil {
+        if err != nil && !apierrors.IsAlreadyExists(err) {
             log.Printf("failed to deploy to %s: %v", cp.Name, err)
-        } else {
+        } else if err == nil {
             log.Printf("deployed ConfigMap to cluster %s", cp.Name)
         }
     }
