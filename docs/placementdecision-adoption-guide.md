@@ -8,7 +8,20 @@ A `PlacementDecision` is a **data-only**, namespace-scoped resource. Schedulers 
 consumers **read** it. Each object holds up to 100 cluster decisions, following the
 [EndpointSlice](https://kubernetes.io/docs/concepts/services-networking/endpoint-slices/) convention.
 
-![PlacementDecision API architecture flow](placementdecision-architecture-flow.png)
+```mermaid
+flowchart LR
+
+    A["Cluster Manager<br/>creates profiles"]
+    B["Cluster Manager<br/>creates profiles"]
+    C["Scheduler<br/>(Producer)"]
+    D["PlacementDecision<br/>[Standard API]"]
+    E["Consumer<br/>(Deployer)"]
+
+    A --> B
+    B -. "Read/Select" .-> C
+    C -. "writes" .-> D
+    E -. "watches" .-> D
+```
 
 ## Table of Contents
 
